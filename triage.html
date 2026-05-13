@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ulink Assist — Medical Case Triage AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --teal:#2BBFBF; --teal-dim:#1E9999; --teal-glow:rgba(43,191,191,0.13);
+      --orange:#E8732A; --orange-dim:#C45E1E; --orange-glow:rgba(232,115,42,0.13);
+      --navy:#0F1E2E; --navy-mid:#172A3E; --navy-light:#1F3850;
+      --card-bg:rgba(23,42,62,0.88); --white:#F0F5F9; --muted:#7A9BB5;
+      --danger:#FF6B6B; --warning:#FFB347; --border:rgba(43,191,191,0.16);
+    }
+    html,body{height:100%;background:var(--navy);color:var(--white);font-family:'DM Sans',sans-serif;font-size:15px;overflow:hidden;}
+    body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 70% 50% at 5% 15%,rgba(43,191,191,0.07) 0%,transparent 60%),radial-gradient(ellipse 50% 60% at 95% 85%,rgba(232,115,42,0.07) 0%,transparent 60%);pointer-events:none;z-index:0;}
+    .app{position:relative;z-index:1;display:grid;grid-template-rows:auto 1fr;height:100vh;}
+    header{display:flex;align-items:center;justify-content:space-between;padding:14px 32px;border-bottom:1px solid var(--border);background:rgba(15,30,46,0.93);backdrop-filter:blur(14px);}
+    .logo{display:flex;align-items:center;gap:12px;}
+    .logo-mark{width:38px;height:38px;}
+    .logo-mark svg{width:100%;height:100%;}
+    .logo-text{display:flex;flex-direction:column;line-height:1.2;}
+    .logo-text span:first-child{font-family:'DM Serif Display',serif;font-size:16px;color:var(--white);letter-spacing:.02em;}
+    .logo-text span:last-child{font-size:10px;color:var(--teal);letter-spacing:.12em;text-transform:uppercase;}
+    .header-right{display:flex;align-items:center;gap:14px;}
+    .stat-chip{display:flex;align-items:center;gap:6px;padding:5px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;font-size:11px;color:var(--muted);}
+    .stat-chip strong{color:var(--white);}
+    .stat-chip strong.teal{color:var(--teal);}
+    .header-badge{display:flex;align-items:center;gap:8px;padding:6px 14px;background:var(--teal-glow);border:1px solid rgba(43,191,191,0.28);border-radius:20px;font-size:11px;color:var(--teal);letter-spacing:.08em;text-transform:uppercase;}
+    .pulse{width:7px;height:7px;border-radius:50%;background:var(--teal);animation:pulse 2s infinite;}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.35;transform:scale(.65);}}
+    .main{display:grid;grid-template-columns:1fr 1fr;overflow:hidden;}
+    .panel{padding:24px 30px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--navy-light) transparent;}
+    .panel:first-child{border-right:1px solid var(--border);}
+    .panel-label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;}
+    .sample-pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:18px;}
+    .pill{padding:5px 12px;background:rgba(43,191,191,0.06);border:1px solid var(--border);border-radius:20px;font-size:11px;color:var(--muted);cursor:pointer;transition:all .2s;}
+    .pill:hover{background:var(--teal-glow);color:var(--teal);border-color:var(--teal);}
+    .pill.active{background:var(--teal-glow);color:var(--teal);border-color:var(--teal);}
+    .textarea-wrap{position:relative;}
+    textarea{width:100%;min-height:172px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;padding-bottom:30px;color:var(--white);font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.65;resize:none;outline:none;transition:border-color .2s;}
+    textarea:focus{border-color:var(--teal);}
+    textarea::placeholder{color:var(--muted);}
+    .char-count{position:absolute;bottom:10px;right:14px;font-size:11px;color:var(--muted);}
+    .triage-btn{margin-top:14px;width:100%;padding:13px;background:linear-gradient(135deg,var(--teal),var(--teal-dim));border:none;border-radius:10px;color:#0F1E2E;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;letter-spacing:.04em;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;}
+    .triage-btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(43,191,191,0.28);}
+    .triage-btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none;}
+    .spinner{width:15px;height:15px;border:2px solid #0F1E2E;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;display:none;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .divider{height:1px;background:var(--border);margin:20px 0 16px;}
+    .history-item{padding:9px 12px;background:rgba(23,42,62,0.6);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;display:flex;align-items:center;gap:9px;font-size:12px;transition:all .2s;}
+    .history-item:not(.solved):hover{border-color:var(--teal);background:var(--teal-glow);}
+    .history-item.solved{opacity:.38;}
+    .history-item.solved .history-text{text-decoration:line-through;}
+    .history-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+    .history-dot.critical{background:var(--danger);}
+    .history-dot.moderate{background:var(--warning);}
+    .history-dot.routine{background:var(--teal);}
+    .history-text{flex:1;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}
+    .history-text:hover{color:var(--white);}
+    .history-time{color:var(--muted);font-size:11px;flex-shrink:0;}
+    .solve-btn{width:20px;height:20px;border-radius:50%;flex-shrink:0;border:1.5px solid var(--muted);background:transparent;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;font-size:10px;color:transparent;font-family:'DM Sans',sans-serif;}
+    .solve-btn:hover{border-color:var(--teal);color:var(--teal);}
+    .history-item.solved .solve-btn{background:var(--teal);border-color:var(--teal);color:#0F1E2E;}
+    .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100% - 36px);gap:12px;color:var(--muted);text-align:center;}
+    .empty-icon{font-size:38px;opacity:.25;}
+    .empty-state p{font-size:13px;max-width:220px;line-height:1.65;}
+    .result{display:none;flex-direction:column;gap:14px;animation:fadeUp .35s ease;}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+    .urgency-banner{border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:14px;border-left:4px solid;}
+    .urgency-banner.critical{background:rgba(255,107,107,0.09);border-color:var(--danger);}
+    .urgency-banner.moderate{background:rgba(255,179,71,0.09);border-color:var(--warning);}
+    .urgency-banner.routine{background:rgba(43,191,191,0.09);border-color:var(--teal);}
+    .urgency-icon{font-size:22px;}
+    .urgency-text{flex:1;}
+    .urgency-label{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+    .urgency-value{font-family:'DM Serif Display',serif;font-size:18px;line-height:1.25;}
+    .urgency-banner.critical .urgency-value{color:var(--danger);}
+    .urgency-banner.moderate .urgency-value{color:var(--warning);}
+    .urgency-banner.routine .urgency-value{color:var(--teal);}
+    .card{background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+    .card-title{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;}
+    .card-body{font-size:13px;line-height:1.65;color:var(--white);}
+    .tags{display:flex;flex-wrap:wrap;gap:6px;}
+    .tag{padding:3px 10px;background:rgba(43,191,191,0.09);border:1px solid rgba(43,191,191,0.2);border-radius:20px;font-size:12px;color:var(--teal);}
+    .draft-card{background:var(--card-bg);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+    .draft-header{padding:11px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+    .draft-header span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+    .copy-btn{padding:4px 11px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:11px;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .2s;}
+    .copy-btn:hover{border-color:var(--teal);color:var(--teal);}
+    .draft-body{padding:14px 16px;font-size:13px;line-height:1.75;color:var(--white);white-space:pre-wrap;}
+    ::-webkit-scrollbar{width:4px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+    ::-webkit-scrollbar-thumb{background:var(--navy-light);border-radius:4px;}
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="19" cy="19" rx="15" ry="18" stroke="#E8732A" stroke-width="3.5" stroke-dasharray="56 100" stroke-dashoffset="-14"/>
+          <ellipse cx="19" cy="19" rx="15" ry="18" stroke="#2BBFBF" stroke-width="3.5" stroke-dasharray="60 100" stroke-dashoffset="42"/>
+          <text x="19" y="24" text-anchor="middle" font-family="DM Serif Display,serif" font-size="13" fill="#F0F5F9">U</text>
+        </svg>
+      </div>
+      <div class="logo-text"><span>Ulink Assist</span><span>Medical Case Triage AI</span></div>
+    </div>
+    <div class="header-right">
+      <div class="stat-chip">Total Cases: <strong id="totalCount">0</strong></div>
+      <div class="stat-chip">Solved: <strong class="teal" id="solvedCount">0</strong></div>
+      <div class="header-badge"><div class="pulse"></div>AI System Active</div>
+    </div>
+  </header>
+  <div class="main">
+    <div class="panel">
+      <div class="panel-label">Patient Inquiry Input</div>
+      <div class="sample-pills">
+        <div class="pill" id="pill_en1" onclick="loadSample('en1')">🇬🇧 Chest pain, urgent</div>
+        <div class="pill" id="pill_id1" onclick="loadSample('id1')">🇮🇩 Bahasa — knee injury</div>
+        <div class="pill" id="pill_zh1" onclick="loadSample('zh1')">🇨🇳 Mandarin — health screening</div>
+        <div class="pill" id="pill_my1" onclick="loadSample('my1')">🇲🇾 BM — child fever</div>
+        <div class="pill" id="pill_en2" onclick="loadSample('en2')">🇸🇬 Pre-auth request</div>
+      </div>
+      <div class="textarea-wrap">
+        <textarea id="inquiryInput" placeholder="Select a sample case above to load a patient inquiry…" readonly></textarea>
+        <span class="char-count" id="charCount">0 chars</span>
+      </div>
+      <button class="triage-btn" id="triageBtn" onclick="runTriage()">
+        <span id="btnText">▶ Run Triage Analysis</span>
+        <div class="spinner" id="spinner"></div>
+      </button>
+      <div class="divider"></div>
+      <div class="panel-label">Recent Cases</div>
+      <div id="historyStrip"><div style="color:var(--muted);font-size:12px;">No cases yet this session.</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-label">Triage Output</div>
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">⚕</div>
+        <p>Select a sample case and run triage to generate an assessment.</p>
+      </div>
+      <div class="result" id="resultPanel">
+        <div class="urgency-banner" id="urgencyBanner">
+          <div class="urgency-icon" id="urgencyIcon"></div>
+          <div class="urgency-text">
+            <div class="urgency-label">Urgency Level</div>
+            <div class="urgency-value" id="urgencyValue"></div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="card"><div class="card-title">Detected Language</div><div class="card-body" id="detectedLang">—</div></div>
+          <div class="card"><div class="card-title">Condition Category</div><div class="card-body" id="conditionCategory">—</div></div>
+        </div>
+        <div class="card"><div class="card-title">Clinical Summary</div><div class="card-body" id="clinicalSummary">—</div></div>
+        <div class="card"><div class="card-title">Recommended Actions</div><div class="tags" id="actionTags"></div></div>
+        <div class="draft-card">
+          <div class="draft-header"><span>Draft Coordinator Response</span><button class="copy-btn" onclick="copyDraft()">Copy</button></div>
+          <div class="draft-body" id="draftResponse">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  const SAMPLES = {
+    en1: `Hi, I'm calling on behalf of my father who is currently in Jakarta. He's been experiencing severe chest pain and shortness of breath for the past 2 hours. He has a history of heart disease. We have insurance coverage through AIA and need urgent assistance to get him to a specialist in Singapore as soon as possible.`,
+    id1: `Selamat pagi, saya ingin bertanya mengenai kondisi lutut saya. Saya mengalami cedera saat berolahraga minggu lalu dan dokter lokal menyarankan saya untuk menemui spesialis ortopedi di Singapura. Apakah Ulink Assist bisa membantu mengatur jadwal konsultasi dan akomodasi saya?`,
+    zh1: `你好，我想预约新加坡的全面健康检查套餐。我目前在中国上海，希望下个月前往新加坡进行体检。请问你们可以帮我安排吗？我有医疗保险，需要了解费用和所需文件。`,
+    my1: `Selamat petang, anak saya berumur 5 tahun dan sudah demam selama 3 hari. Suhu badannya mencapai 39.5 darjah. Doktor tempatan kami mengesyorkan kami mendapatkan pendapat pakar pediatrik di Singapura. Boleh Ulink Assist bantu kami buat temujanji dan uruskan visa?`,
+    en2: `Good morning, I'm writing on behalf of PT Asuransi Mandiri regarding a pre-authorisation request for one of our members, Mr. Budi Santoso (Policy No. AMI-2024-08821). He requires an elective knee replacement surgery at Mount Elizabeth Hospital. Please advise on the documentation required and estimated timeline for approval.`
+  };
+
+  const RESULTS = {
+    en1: {
+      detectedLanguage: "English",
+      urgencyLevel: "Critical",
+      urgencyReason: "Patient reports severe chest pain and shortness of breath with a history of heart disease — potential cardiac emergency requiring immediate specialist intervention.",
+      conditionCategory: "Cardiology",
+      clinicalSummary: "A 60+ year old male patient in Jakarta is experiencing severe chest pain and shortness of breath lasting 2 hours, with a known history of heart disease. The family has AIA insurance coverage and is requesting urgent medical evacuation to a Singapore cardiologist. Immediate action is required to assess whether emergency evacuation by air ambulance is necessary.",
+      recommendedActions: ["Initiate emergency cardiac protocol", "Contact AIA for pre-authorisation", "Arrange air ambulance if required", "Book cardiologist at Mount Elizabeth or Raffles Hospital", "Alert receiving hospital of incoming cardiac case"],
+      draftResponse: `Dear Sir/Madam,\n\nThank you for contacting Ulink Assist. We have received your urgent request regarding your father's chest pain and are treating this as a Critical priority case.\n\nOur team is immediately initiating our cardiac emergency protocol. We are contacting AIA to expedite pre-authorisation and coordinating with our specialist partners in Singapore.\n\nPlease keep your phone available — our coordinator will call you within the next 10 minutes with next steps.\n\nYour father is in good hands.\n\nWarm regards,\nUlink Assist Coordination Team`
+    },
+    id1: {
+      detectedLanguage: "Bahasa Indonesia",
+      urgencyLevel: "Moderate",
+      urgencyReason: "Cedera lutut akibat olahraga memerlukan evaluasi spesialis namun tidak mengancam jiwa — dapat dijadwalkan dalam waktu dekat.",
+      conditionCategory: "Orthopaedics",
+      clinicalSummary: "Pasien mengalami cedera lutut saat berolahraga minggu lalu dan telah dirujuk oleh dokter lokal untuk menemui spesialis ortopedi di Singapura. Kondisi ini bersifat Moderat — memerlukan konsultasi spesialis dan kemungkinan pencitraan lanjutan, namun tidak darurat.",
+      recommendedActions: ["Jadwalkan konsultasi ortopedi", "Konfirmasi dokumen asuransi pasien", "Atur akomodasi di Singapura", "Minta rekam medis dari dokter lokal"],
+      draftResponse: `Selamat pagi,\n\nTerima kasih telah menghubungi Ulink Assist. Kami telah menerima permintaan Anda mengenai cedera lutut dan siap membantu mengatur konsultasi dengan spesialis ortopedi terbaik di Singapura.\n\nTim kami akan segera menghubungi Anda untuk mengonfirmasi jadwal konsultasi, detail asuransi, dan akomodasi selama kunjungan Anda.\n\nJangan khawatir — kami akan memastikan pengalaman Anda berjalan lancar dari awal hingga akhir.\n\nSalam hangat,\nTim Koordinasi Ulink Assist`
+    },
+    zh1: {
+      detectedLanguage: "Mandarin",
+      urgencyLevel: "Routine",
+      urgencyReason: "Permintaan pemeriksaan kesehatan rutin dari Shanghai — tidak ada kondisi darurat yang dilaporkan.",
+      conditionCategory: "Health Screening",
+      clinicalSummary: "Seorang pasien dari Shanghai ingin memesan paket pemeriksaan kesehatan lengkap di Singapura bulan depan. Mereka memiliki asuransi kesehatan dan memerlukan informasi tentang biaya dan dokumen yang diperlukan. Ini adalah kasus rutin yang dapat diproses melalui jalur standar.",
+      recommendedActions: ["Send health screening package options", "Confirm insurance coverage details", "Arrange appointment at preferred hospital", "Provide visa assistance information", "Send pre-screening document checklist"],
+      draftResponse: `您好，\n\n感谢您联系Ulink Assist！我们很高兴为您安排新加坡综合健康检查。\n\n我们与新加坡多家顶级医院合作，包括莱佛士医院和伊丽莎白医院，提供全面的体检套餐。我们的团队将尽快与您联系，为您提供详细的套餐信息、费用说明及所需文件清单。\n\n请放心，我们将全程协助您，确保您的新加坡之行顺利愉快。\n\n此致\nUlink Assist 协调团队`
+    },
+    my1: {
+      detectedLanguage: "Bahasa Malaysia",
+      urgencyLevel: "Moderate",
+      urgencyReason: "Kanak-kanak berumur 5 tahun dengan demam tinggi berterusan selama 3 hari memerlukan penilaian pediatrik segera.",
+      conditionCategory: "Paediatrics",
+      clinicalSummary: "Seorang kanak-kanak berumur 5 tahun mengalami demam tinggi 39.5°C selama 3 hari berturut-turut. Doktor tempatan telah merujuk ke pakar pediatrik di Singapura. Kes ini dinilai Sederhana — memerlukan penilaian segera tetapi bukan kecemasan kritikal pada masa ini.",
+      recommendedActions: ["Jadualkan temujanji pakar pediatrik", "Uruskan visa untuk kanak-kanak dan ibu bapa", "Dapatkan rekod perubatan dari doktor tempatan", "Sahkan liputan insurans", "Atur pengangkutan dari lapangan terbang"],
+      draftResponse: `Selamat petang,\n\nTerima kasih kerana menghubungi Ulink Assist. Kami memahami kebimbangan anda mengenai kesihatan anak anda dan kami sedia membantu.\n\nPasukan kami akan segera menghubungi anda untuk mengatur temujanji dengan pakar pediatrik di Singapura, termasuk bantuan visa dan pengangkutan.\n\nSila pastikan anda membawa rekod perubatan anak anda semasa ke Singapura.\n\nJangan bimbang — kami akan menjaga semuanya untuk anda.\n\nSalam,\nPasukan Koordinasi Ulink Assist`
+    },
+    en2: {
+      detectedLanguage: "English",
+      urgencyLevel: "Routine",
+      urgencyReason: "Elective surgical pre-authorisation request — standard processing timeline applies, no immediate clinical emergency.",
+      conditionCategory: "Pre-Authorisation",
+      clinicalSummary: "PT Asuransi Mandiri is requesting pre-authorisation for member Budi Santoso (Policy No. AMI-2024-08821) for an elective knee replacement surgery at Mount Elizabeth Hospital Singapore. This is a standard TPA pre-auth request requiring documentation review and insurer liaison.",
+      recommendedActions: ["Request full medical records from referring doctor", "Submit pre-auth form to PT Asuransi Mandiri", "Confirm surgery date with Mount Elizabeth Hospital", "Prepare cost estimate and treatment plan", "Send pre-auth decision timeline to insurer"],
+      draftResponse: `Dear PT Asuransi Mandiri Team,\n\nThank you for submitting the pre-authorisation request for Mr. Budi Santoso (Policy No. AMI-2024-08821).\n\nWe have received your request and are initiating the standard pre-authorisation process for the elective knee replacement surgery at Mount Elizabeth Hospital.\n\nTo proceed, kindly provide the following: complete medical reports, surgeon's treatment plan, and estimated cost breakdown. We will liaise directly with Mount Elizabeth Hospital and revert with a decision within 3–5 business days.\n\nPlease do not hesitate to contact us for any clarification.\n\nBest regards,\nUlink Assist TPA Team`
+    }
+  };
+
+  let caseHistory = [];
+  let activeSample = null;
+
+  function loadSample(key) {
+    // Deactivate all pills
+    document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+    document.getElementById('pill_' + key).classList.add('active');
+    document.getElementById('inquiryInput').value = SAMPLES[key];
+    document.getElementById('charCount').textContent = SAMPLES[key].length + ' chars';
+    activeSample = key;
+  }
+
+  function updateStats() {
+    document.getElementById('totalCount').textContent = caseHistory.length;
+    document.getElementById('solvedCount').textContent = caseHistory.filter(c => c.solved).length;
+  }
+
+  function runTriage() {
+    if (!activeSample) { alert('Please select a sample case first.'); return; }
+
+    const btn = document.getElementById('triageBtn');
+    const spinner = document.getElementById('spinner');
+    const btnText = document.getElementById('btnText');
+
+    btn.disabled = true;
+    spinner.style.display = 'block';
+    btnText.textContent = 'Analysing…';
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('resultPanel').style.display = 'none';
+
+    // Simulate processing delay
+    setTimeout(() => {
+      const result = RESULTS[activeSample];
+      const input  = SAMPLES[activeSample];
+
+      const now = new Date();
+      const timeStr = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+
+      caseHistory.unshift({
+        urgency: result.urgencyLevel.toLowerCase(),
+        text:    input.substring(0,58) + '…',
+        time:    timeStr,
+        result, input, solved: false
+      });
+
+      renderOutput(result);
+      renderHistory();
+      updateStats();
+
+      btn.disabled = false;
+      spinner.style.display = 'none';
+      btnText.textContent = '▶ Run Triage Analysis';
+    }, 1200);
+  }
+
+  function renderOutput(r) {
+    const banner = document.getElementById('urgencyBanner');
+    banner.className = 'urgency-banner ' + r.urgencyLevel.toLowerCase();
+    document.getElementById('urgencyIcon').textContent = r.urgencyLevel === 'Critical' ? '🔴' : r.urgencyLevel === 'Moderate' ? '🟡' : '🟢';
+    document.getElementById('urgencyValue').textContent = r.urgencyLevel + ' — ' + r.urgencyReason;
+    document.getElementById('detectedLang').textContent = r.detectedLanguage;
+    document.getElementById('conditionCategory').textContent = r.conditionCategory;
+    document.getElementById('clinicalSummary').textContent = r.clinicalSummary;
+    const tags = document.getElementById('actionTags');
+    tags.innerHTML = '';
+    r.recommendedActions.forEach(a => { const t = document.createElement('div'); t.className = 'tag'; t.textContent = a; tags.appendChild(t); });
+    document.getElementById('draftResponse').textContent = r.draftResponse;
+    document.getElementById('resultPanel').style.display = 'flex';
+  }
+
+  function renderHistory() {
+    const strip = document.getElementById('historyStrip');
+    if (!caseHistory.length) { strip.innerHTML = '<div style="color:var(--muted);font-size:12px;">No cases yet this session.</div>'; return; }
+    strip.innerHTML = caseHistory.slice(0,6).map((c,i) => `
+      <div class="history-item ${c.solved ? 'solved' : ''}" id="hist-${i}">
+        <div class="history-dot ${c.urgency}"></div>
+        <div class="history-text" onclick="viewCase(${i})" title="View case">${c.text}</div>
+        <div class="history-time">${c.time}</div>
+        <button class="solve-btn" onclick="toggleSolved(event,${i})" title="${c.solved ? 'Mark unsolved' : 'Mark solved'}">✓</button>
+      </div>`).join('');
+  }
+
+  function viewCase(i) {
+    document.getElementById('emptyState').style.display = 'none';
+    renderOutput(caseHistory[i].result);
+  }
+
+  function toggleSolved(e, i) {
+    e.stopPropagation();
+    caseHistory[i].solved = !caseHistory[i].solved;
+    renderHistory(); updateStats();
+  }
+
+  function copyDraft() {
+    navigator.clipboard.writeText(document.getElementById('draftResponse').textContent).then(() => {
+      const btn = document.querySelector('.copy-btn'); btn.textContent = 'Copied ✓';
+      setTimeout(() => btn.textContent = 'Copy', 2000);
+    });
+  }
+</script>
+</body>
+</html>

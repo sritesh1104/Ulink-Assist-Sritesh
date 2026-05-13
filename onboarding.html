@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ulink Assist — Patient Onboarding AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --teal:#2BBFBF; --teal-dim:#1E9999; --teal-glow:rgba(43,191,191,0.13);
+      --orange:#E8732A; --orange-dim:#C45E1E; --orange-glow:rgba(232,115,42,0.13);
+      --navy:#0F1E2E; --navy-mid:#172A3E; --navy-light:#1F3850;
+      --card-bg:rgba(23,42,62,0.88); --white:#F0F5F9; --muted:#7A9BB5;
+      --danger:#FF6B6B; --warning:#FFB347; --border:rgba(43,191,191,0.16); --border-o:rgba(232,115,42,0.2);
+    }
+    html,body{height:100%;background:var(--navy);color:var(--white);font-family:'DM Sans',sans-serif;font-size:15px;overflow:hidden;}
+    body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 70% 50% at 5% 15%,rgba(43,191,191,0.07) 0%,transparent 60%),radial-gradient(ellipse 50% 60% at 95% 85%,rgba(232,115,42,0.07) 0%,transparent 60%);pointer-events:none;z-index:0;}
+    .app{position:relative;z-index:1;display:grid;grid-template-rows:auto 1fr;height:100vh;}
+    header{display:flex;align-items:center;justify-content:space-between;padding:14px 32px;border-bottom:1px solid var(--border);background:rgba(15,30,46,0.93);backdrop-filter:blur(14px);}
+    .logo{display:flex;align-items:center;gap:12px;}
+    .logo-mark{width:38px;height:38px;}
+    .logo-mark svg{width:100%;height:100%;}
+    .logo-text{display:flex;flex-direction:column;line-height:1.2;}
+    .logo-text span:first-child{font-family:'DM Serif Display',serif;font-size:16px;color:var(--white);letter-spacing:.02em;}
+    .logo-text span:last-child{font-size:10px;color:var(--orange);letter-spacing:.12em;text-transform:uppercase;}
+    .header-badge{display:flex;align-items:center;gap:8px;padding:6px 14px;background:var(--orange-glow);border:1px solid var(--border-o);border-radius:20px;font-size:11px;color:var(--orange);letter-spacing:.08em;text-transform:uppercase;}
+    .pulse{width:7px;height:7px;border-radius:50%;background:var(--orange);animation:pulse 2s infinite;}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.35;transform:scale(.65);}}
+    .main{display:grid;grid-template-columns:1fr 1fr;overflow:hidden;}
+    .panel{padding:24px 30px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--navy-light) transparent;}
+    .panel:first-child{border-right:1px solid var(--border);}
+    .panel-label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:20px;}
+    .progress-bar{display:flex;align-items:center;margin-bottom:28px;}
+    .step-node{display:flex;flex-direction:column;align-items:center;gap:5px;flex:1;}
+    .step-circle{width:28px;height:28px;border-radius:50%;border:2px solid var(--border);background:var(--navy-mid);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--muted);transition:all .3s;}
+    .step-circle.active{border-color:var(--orange);background:var(--orange-glow);color:var(--orange);}
+    .step-circle.done{border-color:var(--teal);background:var(--teal);color:#0F1E2E;}
+    .step-label{font-size:10px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;}
+    .step-label.active{color:var(--orange);}
+    .step-label.done{color:var(--teal);}
+    .step-line{flex:1;height:2px;background:var(--border);margin-bottom:18px;transition:background .3s;}
+    .step-line.done{background:var(--teal);}
+    .form-step{display:none;animation:fadeUp .3s ease;}
+    .form-step.active{display:block;}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+    .step-title{font-family:'DM Serif Display',serif;font-size:20px;color:var(--white);margin-bottom:6px;}
+    .step-subtitle{font-size:13px;color:var(--muted);margin-bottom:22px;line-height:1.5;}
+    .field-group{margin-bottom:18px;}
+    .field-label{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;display:block;}
+    input,select,textarea.form-input{width:100%;background:var(--card-bg);border:1px solid var(--border);border-radius:9px;padding:11px 14px;color:var(--white);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .2s;appearance:none;}
+    input:focus,select:focus,textarea.form-input:focus{border-color:var(--orange);}
+    input::placeholder,textarea.form-input::placeholder{color:var(--muted);}
+    select option{background:var(--navy-mid);color:var(--white);}
+    textarea.form-input{min-height:80px;resize:none;line-height:1.6;}
+    .field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+    .urgency-options{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+    .urgency-opt{padding:10px 8px;border:1.5px solid var(--border);border-radius:9px;background:var(--card-bg);cursor:pointer;text-align:center;transition:all .2s;}
+    .urgency-opt .opt-icon{font-size:18px;margin-bottom:4px;}
+    .urgency-opt .opt-label{font-size:12px;color:var(--muted);}
+    .urgency-opt.sel-urgent{border-color:var(--danger);background:rgba(255,107,107,0.1);}
+    .urgency-opt.sel-urgent .opt-label{color:var(--danger);}
+    .urgency-opt.sel-scheduled{border-color:var(--warning);background:rgba(255,179,71,0.1);}
+    .urgency-opt.sel-scheduled .opt-label{color:var(--warning);}
+    .urgency-opt.sel-elective{border-color:var(--teal);background:var(--teal-glow);}
+    .urgency-opt.sel-elective .opt-label{color:var(--teal);}
+    .urgency-opt:not([class*="sel"]):hover{border-color:var(--orange);}
+    .btn-row{display:flex;gap:12px;margin-top:24px;}
+    .btn-back{padding:12px 20px;background:transparent;border:1px solid var(--border);border-radius:9px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;transition:all .2s;}
+    .btn-back:hover{border-color:var(--muted);color:var(--white);}
+    .btn-next{flex:1;padding:12px;background:linear-gradient(135deg,var(--orange),var(--orange-dim));border:none;border-radius:9px;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;}
+    .btn-next:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(232,115,42,0.28);}
+    .btn-next:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none;}
+    .spinner{width:15px;height:15px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;display:none;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100% - 36px);gap:12px;color:var(--muted);text-align:center;}
+    .empty-icon{font-size:38px;opacity:.22;}
+    .empty-state p{font-size:13px;max-width:220px;line-height:1.65;}
+    .result{display:none;flex-direction:column;gap:14px;animation:fadeUp .35s ease;}
+    .patient-badge{background:linear-gradient(135deg,rgba(232,115,42,0.15),rgba(43,191,191,0.1));border:1px solid var(--border-o);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:14px;}
+    .patient-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--orange),var(--teal));display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:18px;color:#fff;flex-shrink:0;}
+    .patient-info{flex:1;}
+    .patient-name{font-family:'DM Serif Display',serif;font-size:17px;color:var(--white);}
+    .patient-meta{font-size:12px;color:var(--muted);margin-top:2px;}
+    .urgency-pill{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.06em;}
+    .urgency-pill.urgent{background:rgba(255,107,107,0.15);color:var(--danger);border:1px solid rgba(255,107,107,0.3);}
+    .urgency-pill.scheduled{background:rgba(255,179,71,0.15);color:var(--warning);border:1px solid rgba(255,179,71,0.3);}
+    .urgency-pill.elective{background:var(--teal-glow);color:var(--teal);border:1px solid rgba(43,191,191,0.3);}
+    .card{background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+    .card-title{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
+    .checklist{display:flex;flex-direction:column;gap:8px;}
+    .check-item{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:rgba(15,30,46,0.5);border:1px solid var(--border);border-radius:8px;font-size:13px;}
+    .ci-icon{font-size:14px;flex-shrink:0;margin-top:1px;}
+    .ci-text{flex:1;color:var(--white);line-height:1.5;}
+    .ci-time{font-size:11px;color:var(--teal);flex-shrink:0;white-space:nowrap;}
+    .doc-tags{display:flex;flex-wrap:wrap;gap:7px;}
+    .doc-tag{padding:5px 12px;background:rgba(43,191,191,0.08);border:1px solid rgba(43,191,191,0.2);border-radius:20px;font-size:12px;color:var(--teal);}
+    .timeline-row{display:flex;gap:12px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border);}
+    .timeline-row:last-child{border-bottom:none;}
+    .tl-day{font-size:11px;color:var(--orange);font-weight:600;width:90px;min-width:90px;flex-shrink:0;padding-top:2px;line-height:1.4;}
+    .tl-text{font-size:13px;color:var(--white);line-height:1.5;}
+    .welcome-card{background:var(--card-bg);border:1px solid var(--border-o);border-radius:10px;overflow:hidden;}
+    .welcome-header{padding:11px 16px;border-bottom:1px solid var(--border-o);display:flex;align-items:center;justify-content:space-between;background:var(--orange-glow);}
+    .welcome-header span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--orange);}
+    .copy-btn{padding:4px 11px;background:transparent;border:1px solid var(--border-o);border-radius:6px;color:var(--orange);font-size:11px;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .2s;}
+    .copy-btn:hover{background:var(--orange-glow);}
+    .welcome-body{padding:14px 16px;font-size:13px;line-height:1.8;color:var(--white);white-space:pre-wrap;}
+    .reset-btn{width:100%;padding:11px;background:transparent;border:1px solid var(--border);border-radius:9px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all .2s;margin-top:4px;}
+    .reset-btn:hover{border-color:var(--orange);color:var(--orange);}
+    ::-webkit-scrollbar{width:4px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+    ::-webkit-scrollbar-thumb{background:var(--navy-light);border-radius:4px;}
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="19" cy="19" rx="15" ry="18" stroke="#E8732A" stroke-width="3.5" stroke-dasharray="56 100" stroke-dashoffset="-14"/>
+          <ellipse cx="19" cy="19" rx="15" ry="18" stroke="#2BBFBF" stroke-width="3.5" stroke-dasharray="60 100" stroke-dashoffset="42"/>
+          <text x="19" y="24" text-anchor="middle" font-family="DM Serif Display,serif" font-size="13" fill="#F0F5F9">U</text>
+        </svg>
+      </div>
+      <div class="logo-text"><span>Ulink Assist</span><span>Patient Onboarding AI</span></div>
+    </div>
+    <div class="header-badge"><div class="pulse"></div>Coordinator Mode</div>
+  </header>
+  <div class="main">
+    <div class="panel">
+      <div class="panel-label">New Patient Intake</div>
+      <div class="progress-bar">
+        <div class="step-node"><div class="step-circle active" id="sc1">1</div><div class="step-label active" id="sl1">Patient</div></div>
+        <div class="step-line" id="line1"></div>
+        <div class="step-node"><div class="step-circle" id="sc2">2</div><div class="step-label" id="sl2">Medical</div></div>
+        <div class="step-line" id="line2"></div>
+        <div class="step-node"><div class="step-circle" id="sc3">3</div><div class="step-label" id="sl3">Logistics</div></div>
+      </div>
+      <div class="form-step active" id="step1">
+        <div class="step-title">Patient Details</div>
+        <div class="step-subtitle">Enter the patient's personal information to personalise the onboarding plan.</div>
+        <div class="field-group"><label class="field-label">Full Name</label><input type="text" id="f_name" placeholder="e.g. Budi Santoso"/></div>
+        <div class="field-row">
+          <div class="field-group"><label class="field-label">Age</label><input type="number" id="f_age" placeholder="e.g. 52"/></div>
+          <div class="field-group"><label class="field-label">Nationality</label><input type="text" id="f_nationality" placeholder="e.g. Indonesian"/></div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Preferred Language</label>
+          <select id="f_language">
+            <option value="">— Select language —</option>
+            <option>English</option><option>Bahasa Indonesia</option><option>Mandarin</option>
+            <option>Bahasa Malaysia</option><option>Burmese</option><option>Khmer</option>
+            <option>Hindi</option><option>Tamil</option><option>Bengali</option><option>Other</option>
+          </select>
+        </div>
+        <div class="btn-row"><button class="btn-next" onclick="goStep(2)">Next — Medical Details →</button></div>
+      </div>
+      <div class="form-step" id="step2">
+        <div class="step-title">Medical Details</div>
+        <div class="step-subtitle">Describe the patient's condition and care requirements.</div>
+        <div class="field-group"><label class="field-label">Medical Condition / Reason for Visit</label><textarea class="form-input" id="f_condition" placeholder="e.g. Chronic knee pain requiring orthopaedic specialist assessment"></textarea></div>
+        <div class="field-group">
+          <label class="field-label">Specialist Type Needed</label>
+          <select id="f_specialist">
+            <option value="">— Select specialist —</option>
+            <option>Cardiologist</option><option>Orthopaedic Surgeon</option><option>Oncologist</option>
+            <option>Neurologist</option><option>Paediatrician</option><option>General Surgeon</option>
+            <option>Gastroenterologist</option><option>Urologist</option><option>Ophthalmologist</option>
+            <option>ENT Specialist</option><option>Other</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Urgency Level</label>
+          <div class="urgency-options">
+            <div class="urgency-opt" id="opt_urgent" onclick="selectUrgency('Urgent')"><div class="opt-icon">🔴</div><div class="opt-label">Urgent</div></div>
+            <div class="urgency-opt" id="opt_scheduled" onclick="selectUrgency('Scheduled')"><div class="opt-icon">🟡</div><div class="opt-label">Scheduled</div></div>
+            <div class="urgency-opt" id="opt_elective" onclick="selectUrgency('Elective')"><div class="opt-icon">🟢</div><div class="opt-label">Elective</div></div>
+          </div>
+        </div>
+        <div class="btn-row"><button class="btn-back" onclick="goStep(1)">← Back</button><button class="btn-next" onclick="goStep(3)">Next — Logistics →</button></div>
+      </div>
+      <div class="form-step" id="step3">
+        <div class="step-title">Logistics</div>
+        <div class="step-subtitle">Final details to complete the onboarding plan.</div>
+        <div class="field-group"><label class="field-label">Arrival Date</label><input type="date" id="f_arrival"/></div>
+        <div class="field-group"><label class="field-label">Insurance Provider</label><input type="text" id="f_insurance" placeholder="e.g. AIA, Prudential, Self-paying"/></div>
+        <div class="field-group"><label class="field-label">Special Requirements</label><textarea class="form-input" id="f_special" placeholder="e.g. Wheelchair access, Mandarin translator, Halal meals…"></textarea></div>
+        <div class="btn-row">
+          <button class="btn-back" onclick="goStep(2)">← Back</button>
+          <button class="btn-next" id="generateBtn" onclick="generatePlan()">
+            <span id="genBtnText">✦ Generate Onboarding Plan</span>
+            <div class="spinner" id="genSpinner"></div>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-label">Onboarding Plan</div>
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">🏥</div>
+        <p>Complete the intake form on the left to generate a personalised patient onboarding plan.</p>
+      </div>
+      <div class="result" id="resultPanel">
+        <div class="patient-badge">
+          <div class="patient-avatar" id="patientAvatar">—</div>
+          <div class="patient-info"><div class="patient-name" id="patientName">—</div><div class="patient-meta" id="patientMeta">—</div></div>
+          <div class="urgency-pill" id="urgencyPill">—</div>
+        </div>
+        <div class="card"><div class="card-title">✅ Coordinator Action Checklist</div><div class="checklist" id="checklistItems"></div></div>
+        <div class="card"><div class="card-title">📋 Documents Required</div><div class="doc-tags" id="docTags"></div></div>
+        <div class="card"><div class="card-title">📅 Estimated Onboarding Timeline</div><div id="timelineItems"></div></div>
+        <div class="welcome-card">
+          <div class="welcome-header"><span>Patient Welcome Message (WhatsApp Ready)</span><button class="copy-btn" onclick="copyWelcome()">Copy</button></div>
+          <div class="welcome-body" id="welcomeMsg">—</div>
+        </div>
+        <button class="reset-btn" onclick="resetForm()">↺ Start New Patient</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  let currentStep = 1;
+  let selectedUrgency = '';
+
+  // Pre-simulated plans keyed by specialist category
+  const PLANS = {
+    cardiology: {
+      checklistItems: [
+        { icon: "📞", task: "Contact cardiologist at Mount Elizabeth or Raffles Hospital to confirm appointment slot", timing: "Immediately" },
+        { icon: "✈️", task: "Assess need for air ambulance or assisted medical escort based on urgency", timing: "Within 2 hours" },
+        { icon: "🏥", task: "Notify receiving hospital cardiology department of incoming patient", timing: "Same day" },
+        { icon: "📄", task: "Request complete cardiac history and recent ECG reports from referring doctor", timing: "Before arrival" },
+        { icon: "💳", task: "Submit pre-authorisation to insurance provider with estimated treatment costs", timing: "Within 24 hours" }
+      ],
+      documents: ["Passport (patient + companion)", "Insurance card & policy documents", "Referral letter from local doctor", "Recent ECG and cardiac reports", "List of current medications"],
+      timeline: [
+        { day: "Day 1 (Arrival)", event: "Airport pickup by Ulink coordinator, direct transfer to hospital for emergency cardiac assessment" },
+        { day: "Day 1 (Afternoon)", event: "Initial cardiologist consultation, ECG and blood tests conducted" },
+        { day: "Day 2", event: "Advanced imaging (echocardiogram or angiogram) and specialist review of results" },
+        { day: "Day 3–5", event: "Treatment plan confirmed — surgery, medication management, or further observation as required" }
+      ]
+    },
+    orthopaedics: {
+      checklistItems: [
+        { icon: "📞", task: "Schedule orthopaedic consultation at preferred hospital within patient's available dates", timing: "Within 24 hours" },
+        { icon: "🏨", task: "Arrange hotel accommodation near the hospital for patient and companion", timing: "3 days before arrival" },
+        { icon: "📄", task: "Request MRI and X-ray reports from local doctor to share with specialist in advance", timing: "Before arrival" },
+        { icon: "💳", task: "Confirm insurance coverage for consultation and possible surgical procedure", timing: "Within 24 hours" },
+        { icon: "🚗", task: "Arrange airport transfer and hospital transport on arrival day", timing: "2 days before arrival" }
+      ],
+      documents: ["Passport (patient + companion)", "Insurance card & policy documents", "Referral letter from local doctor", "MRI and X-ray imaging reports", "List of current medications"],
+      timeline: [
+        { day: "Day 1 (Arrival)", event: "Airport pickup, check-in at accommodation, rest and orientation briefing by coordinator" },
+        { day: "Day 2 (Morning)", event: "Orthopaedic specialist consultation — review of imaging, physical examination" },
+        { day: "Day 2 (Afternoon)", event: "Additional imaging or blood tests if required by specialist" },
+        { day: "Day 3–7", event: "Surgery scheduled if required, or conservative treatment plan initiated with follow-up appointments" }
+      ]
+    },
+    paediatrics: {
+      checklistItems: [
+        { icon: "👶", task: "Book paediatric consultation at KK Women's and Children's Hospital or Mount Elizabeth", timing: "Immediately" },
+        { icon: "🛂", task: "Assist with visa application for child and accompanying parent(s)", timing: "3–5 days before arrival" },
+        { icon: "📄", task: "Request child's medical history, vaccination records, and recent lab results", timing: "Before arrival" },
+        { icon: "🏨", task: "Arrange family-friendly accommodation near hospital", timing: "3 days before arrival" },
+        { icon: "💳", task: "Confirm insurance coverage for paediatric consultation and treatment", timing: "Within 24 hours" }
+      ],
+      documents: ["Child's passport + parents' passports", "Child's insurance documents", "Referral letter from local paediatrician", "Vaccination records", "Recent blood test and lab results"],
+      timeline: [
+        { day: "Day 1 (Arrival)", event: "Family received at airport, transfer to accommodation, welcome briefing by coordinator" },
+        { day: "Day 2 (Morning)", event: "Paediatric specialist consultation — full assessment and diagnosis review" },
+        { day: "Day 2 (Afternoon)", event: "Lab tests and imaging conducted if required" },
+        { day: "Day 3–5", event: "Treatment plan confirmed and initiated — medication, further tests, or admission if required" }
+      ]
+    },
+    general: {
+      checklistItems: [
+        { icon: "📞", task: "Confirm specialist appointment and send calendar invite to patient coordinator", timing: "Within 24 hours" },
+        { icon: "🚗", task: "Arrange airport pickup and hospital transfer on arrival day", timing: "2 days before arrival" },
+        { icon: "📄", task: "Request medical records, referral letter, and recent test results from local doctor", timing: "Before arrival" },
+        { icon: "🏨", task: "Book accommodation near hospital for patient and companion", timing: "3 days before arrival" },
+        { icon: "💳", task: "Confirm insurance pre-authorisation and coverage scope", timing: "Within 24 hours" }
+      ],
+      documents: ["Passport (patient + companion)", "Insurance card & policy documents", "Referral letter from local doctor", "Recent medical test results", "List of current medications and allergies"],
+      timeline: [
+        { day: "Day 1 (Arrival)", event: "Airport pickup by Ulink coordinator, check-in to accommodation" },
+        { day: "Day 2 (Morning)", event: "Specialist consultation — patient history review and physical examination" },
+        { day: "Day 2 (Afternoon)", event: "Diagnostic tests or imaging ordered by specialist" },
+        { day: "Day 3–5", event: "Specialist reviews results and presents treatment plan to patient and coordinator" }
+      ]
+    }
+  };
+
+  const WELCOME_MESSAGES = {
+    English: (name, specialist) =>
+      `Dear ${name},\n\nWelcome to Ulink Assist! We are delighted to be coordinating your medical journey to Singapore.\n\nYour ${specialist} consultation has been arranged, and our dedicated coordinator will be with you every step of the way — from airport arrival to your appointment and beyond.\n\nPlease remember to bring:\n• Your passport and insurance documents\n• Medical reports and referral letter from your doctor\n• List of current medications\n\nWe look forward to welcoming you to Singapore. You are in safe hands.\n\nWarm regards,\nUlink Assist Coordination Team`,
+    "Bahasa Indonesia": (name, specialist) =>
+      `Yth. ${name},\n\nSelamat datang di Ulink Assist! Kami sangat senang dapat membantu perjalanan medis Anda ke Singapura.\n\nKonsultasi dengan spesialis ${specialist} Anda telah kami atur, dan koordinator kami akan mendampingi Anda dari awal hingga akhir.\n\nMohon ingat untuk membawa:\n• Paspor dan dokumen asuransi\n• Laporan medis dan surat rujukan dari dokter Anda\n• Daftar obat-obatan yang sedang dikonsumsi\n\nKami menantikan kedatangan Anda di Singapura. Anda berada di tangan yang tepat.\n\nSalam hangat,\nTim Koordinasi Ulink Assist`,
+    Mandarin: (name, specialist) =>
+      `亲爱的${name}，\n\n欢迎来到Ulink Assist！我们非常荣幸能够为您安排前往新加坡的医疗之旅。\n\n您的${specialist}会诊已安排妥当，我们的专属协调员将全程陪同您——从机场接送到就诊全程。\n\n请记得携带：\n• 护照及保险文件\n• 病历报告及转诊信\n• 目前服用的药物清单\n\n期待您的到来，请放心，您将得到最好的照料。\n\n此致\nUlink Assist 协调团队`,
+    "Bahasa Malaysia": (name, specialist) =>
+      `Yang dihormati ${name},\n\nSelamat datang ke Ulink Assist! Kami amat berbesar hati untuk menyelaraskan perjalanan perubatan anda ke Singapura.\n\nTemujanji anda dengan pakar ${specialist} telah diaturkan, dan koordinator kami akan bersama anda setiap langkah.\n\nSila ingat untuk membawa:\n• Pasport dan dokumen insurans\n• Laporan perubatan dan surat rujukan doktor\n• Senarai ubat-ubatan semasa\n\nKami menantikan ketibaan anda. Anda berada dalam jagaan yang baik.\n\nSalam,\nPasukan Koordinasi Ulink Assist`
+  };
+
+  function getPlan(specialist) {
+    const s = (specialist || '').toLowerCase();
+    if (s.includes('cardio')) return PLANS.cardiology;
+    if (s.includes('ortho')) return PLANS.orthopaedics;
+    if (s.includes('paediat') || s.includes('pediatr')) return PLANS.paediatrics;
+    return PLANS.general;
+  }
+
+  function getWelcome(language, name, specialist) {
+    const fn = WELCOME_MESSAGES[language] || WELCOME_MESSAGES['English'];
+    return fn(name.split(' ')[0], specialist);
+  }
+
+  function goStep(n) {
+    if (n > currentStep) {
+      if (currentStep === 1) {
+        if (!document.getElementById('f_name').value.trim())        { alert('Please enter the patient name.'); return; }
+        if (!document.getElementById('f_age').value)                { alert('Please enter the patient age.'); return; }
+        if (!document.getElementById('f_nationality').value.trim()) { alert('Please enter nationality.'); return; }
+        if (!document.getElementById('f_language').value)           { alert('Please select preferred language.'); return; }
+      }
+      if (currentStep === 2) {
+        if (!document.getElementById('f_condition').value.trim()) { alert('Please describe the medical condition.'); return; }
+        if (!document.getElementById('f_specialist').value)       { alert('Please select specialist type.'); return; }
+        if (!selectedUrgency)                                      { alert('Please select urgency level.'); return; }
+      }
+    }
+    document.getElementById('step' + currentStep).classList.remove('active');
+    document.getElementById('sc' + currentStep).classList.remove('active');
+    document.getElementById('sl' + currentStep).classList.remove('active');
+    if (n > currentStep) {
+      document.getElementById('sc' + currentStep).classList.add('done');
+      document.getElementById('sc' + currentStep).textContent = '✓';
+      document.getElementById('sl' + currentStep).classList.add('done');
+      if (currentStep < 3) document.getElementById('line' + currentStep).classList.add('done');
+    } else {
+      document.getElementById('sc' + currentStep).classList.remove('done');
+      document.getElementById('sc' + currentStep).textContent = currentStep;
+      document.getElementById('sl' + currentStep).classList.remove('done');
+      if (currentStep > 1) document.getElementById('line' + (currentStep-1)).classList.remove('done');
+    }
+    currentStep = n;
+    document.getElementById('step' + currentStep).classList.add('active');
+    document.getElementById('sc' + currentStep).classList.add('active');
+    document.getElementById('sl' + currentStep).classList.add('active');
+  }
+
+  function selectUrgency(val) {
+    selectedUrgency = val;
+    ['urgent','scheduled','elective'].forEach(k => { document.getElementById('opt_' + k).className = 'urgency-opt'; });
+    document.getElementById('opt_' + val.toLowerCase()).classList.add('sel-' + val.toLowerCase());
+  }
+
+  function generatePlan() {
+    if (!document.getElementById('f_arrival').value)          { alert('Please select an arrival date.'); return; }
+    if (!document.getElementById('f_insurance').value.trim()) { alert('Please enter insurance provider.'); return; }
+
+    const btn = document.getElementById('generateBtn');
+    const spinner = document.getElementById('genSpinner');
+    const btnText = document.getElementById('genBtnText');
+    btn.disabled = true; spinner.style.display = 'block'; btnText.textContent = 'Generating…';
+
+    const p = {
+      name:       document.getElementById('f_name').value.trim(),
+      age:        document.getElementById('f_age').value,
+      nationality:document.getElementById('f_nationality').value.trim(),
+      language:   document.getElementById('f_language').value,
+      condition:  document.getElementById('f_condition').value.trim(),
+      specialist: document.getElementById('f_specialist').value,
+      urgency:    selectedUrgency,
+      arrival:    document.getElementById('f_arrival').value,
+      insurance:  document.getElementById('f_insurance').value.trim(),
+      special:    document.getElementById('f_special').value.trim() || 'None'
+    };
+
+    setTimeout(() => {
+      const plan    = getPlan(p.specialist);
+      const welcome = getWelcome(p.language, p.name, p.specialist);
+      renderPlan(p, plan, welcome);
+      btn.disabled = false; spinner.style.display = 'none'; btnText.textContent = '✦ Generate Onboarding Plan';
+    }, 1400);
+  }
+
+  function renderPlan(p, r, welcome) {
+    const initials = p.name.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+    document.getElementById('patientAvatar').textContent = initials;
+    document.getElementById('patientName').textContent   = p.name;
+    document.getElementById('patientMeta').textContent   = p.age + ' yrs · ' + p.nationality + ' · ' + p.language + ' · ' + p.specialist;
+    const pill = document.getElementById('urgencyPill');
+    pill.textContent = p.urgency; pill.className = 'urgency-pill ' + p.urgency.toLowerCase();
+
+    document.getElementById('checklistItems').innerHTML = r.checklistItems.map(item =>
+      '<div class="check-item"><span class="ci-icon">'+item.icon+'</span><span class="ci-text">'+item.task+'</span><span class="ci-time">'+item.timing+'</span></div>'
+    ).join('');
+
+    document.getElementById('docTags').innerHTML = r.documents.map(d =>
+      '<div class="doc-tag">📄 '+d+'</div>'
+    ).join('');
+
+    document.getElementById('timelineItems').innerHTML = r.timeline.map(t =>
+      '<div class="timeline-row"><div class="tl-day">'+t.day+'</div><div class="tl-text">'+t.event+'</div></div>'
+    ).join('');
+
+    document.getElementById('welcomeMsg').textContent = welcome;
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('resultPanel').style.display = 'flex';
+  }
+
+  function copyWelcome() {
+    navigator.clipboard.writeText(document.getElementById('welcomeMsg').textContent).then(() => {
+      const btn = document.querySelector('.copy-btn'); btn.textContent = 'Copied ✓';
+      setTimeout(() => btn.textContent = 'Copy', 2000);
+    });
+  }
+
+  function resetForm() {
+    ['f_name','f_age','f_nationality','f_condition','f_special','f_insurance'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('f_language').value = '';
+    document.getElementById('f_specialist').value = '';
+    document.getElementById('f_arrival').value = '';
+    selectedUrgency = '';
+    ['urgent','scheduled','elective'].forEach(k => document.getElementById('opt_'+k).className = 'urgency-opt');
+    if (currentStep !== 1) goStep(1);
+    document.getElementById('resultPanel').style.display = 'none';
+    document.getElementById('emptyState').style.display = 'flex';
+  }
+</script>
+</body>
+</html>
